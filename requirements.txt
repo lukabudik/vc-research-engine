@@ -2,6 +2,11 @@ fastapi[standard]>=0.95.0
 python-multipart>=0.0.6
 pydantic>=2.0.0
 uvicorn>=0.22.0
-openai>=1.0.0
-matplotlib>=3.7.0
-pandas>=2.0.0
+openai-agents
+httpx
+python-dotenv
+playwright
+requests
+websockets
+jsonschema>=4.0.0
+e2b-code-interpreter

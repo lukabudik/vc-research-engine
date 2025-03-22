@@ -240,7 +240,7 @@ financial_metrics_agent = Agent(
     
     It is CRITICAL that you follow this exact JSON structure. The system will break if you don't follow it precisely.
     """,
-    tools=[search_google, scrape_website, run_python_code],
+    tools=[search_google, scrape_website],
     model="gpt-4o",
     model_settings=ModelSettings(
         temperature=0.2

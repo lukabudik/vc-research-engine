@@ -1,0 +1,1541 @@
+E2B Documentation
+Here you'll find all the guides, concepts, and SDK references for developing with E2B.
+
+
+JavaScript & TypeScript
+
+Python
+Terminal
+npm i @e2b/code-interpreter
+
+Copy
+Copied!
+What is E2B?
+E2B is an open-source infrastructure that allows you to run AI-generated code in secure isolated sandboxes in the cloud. To start and control sandboxes, use our Python SDK or JavaScript SDK.
+
+Some of the typical use cases for E2B are AI data analysis or visualization, running AI-generated code of various languages, playground for coding agents, environment for codegen evals, or running full AI-generated apps like in Fragments.
+
+Under the hood
+The E2B Sandbox is a small isolated VM the can be started very quickly (~150ms). You can think of it as a small computer for the AI model. You can run many sandboxes at once. Typically, you run separate sandbox for each LLM, user, or AI agent session in your app. For example, if you were building an AI data analysis chatbot, you would start the sandbox for every user session.
+
+Quickstart
+Running your first Sandbox
+Learn how to start your first E2B Sandbox with our Python or JavaScript SDK.
+
+Connecting LLMs to E2B
+Connect your favorite LLM to E2B to run AI-generated code inside the Sandbox.
+
+Uploading & downloading files
+A quick guide on how to upload and download files to and from the Sandbox.
+
+Install custom packages
+Customize your Sandbox with third-party packages.
+
+Code interpreting with AI
+Analyze data with AI
+Learn how to use E2B run AI-generated code to analyze yourdata.
+
+Create charts & visualizations
+Create interactive charts by running Python code in E2B.
+
+Learn the core concepts
+Sandbox lifecycle
+Learn about how to start the sandbox, manage its lifecycle, and interact with it.
+
+Sandbox persistence
+Learn how to achieve data persistence by pausing and resuming sandboxes.
+
+Filesystem
+Sandbox has an isolated filesystem that you can use to create, read, write, and delete files.
+
+Commands
+Run terminal commands inside the Sandbox and start any process inside the Sandbox.
+
+Running your first Sandbox
+This guide will show you how to start your first E2B Sandbox.
+
+1. Create E2B account
+Every new E2B account get $100 in credits. You can sign up here.
+
+2. Set your environment variables
+Navigate to the E2B Dashboard.
+Copy your API key.
+Paste your E2B API key into your .env file.
+.env
+E2B_API_KEY=e2b_***
+
+Copy
+Copied!
+3. Install E2B SDK
+Install the E2B SDK to your project by running the following command in your terminal.
+
+
+JavaScript & TypeScript
+
+Python
+Terminal
+npm i @e2b/code-interpreter dotenv
+
+Copy
+Copied!
+4. Write code for starting Sandbox
+We'll write the minimal code for starting Sandbox, executing Python inside it and listing all files inside the root directory.
+
+
+JavaScript & TypeScript
+
+Python
+index.ts
+import 'dotenv/config'
+import { Sandbox } from '@e2b/code-interpreter'
+
+const sbx = await Sandbox.create() // By default the sandbox is alive for 5 minutes
+const execution = await sbx.runCode('print("hello world")') // Execute Python inside the sandbox
+console.log(execution.logs)
+
+const files = await sbx.files.list('/')
+console.log(files)
+
+Copy
+Copied!
+5. Start your first E2B Sandbox
+Run the code with the following command:
+
+
+JavaScript & TypeScript
+
+Python
+Terminal
+npx tsx ./index.ts
+
+Connect LLMs to E2B
+E2B can work with any LLM and AI framework. The easiest way to connect an LLM to E2B is to use the tool use capabilities of the LLM (sometimes known as function calling).
+
+If the LLM doesn't support tool use, you can, for example, prompt the LLM to output code snippets and then manually extract the code snippets with RegEx.
+
+Contents
+OpenAI
+Anthropic
+Mistral
+Groq
+Vercel AI SDK
+CrewAI
+LangChain
+LlamaIndex
+Ollama
+OpenAI
+Simple
+# pip install openai e2b-code-interpreter
+from openai import OpenAI
+from e2b_code_interpreter import Sandbox
+
+# Create OpenAI client
+client = OpenAI()
+system = "You are a helpful assistant that can execute python code in a Jupyter notebook. Only respond with the code to be executed and nothing else. Strip backticks in code blocks."
+prompt = "Calculate how many r's are in the word 'strawberry'"
+
+# Send messages to OpenAI API
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": system},
+        {"role": "user", "content": prompt}
+    ]
+)
+
+# Extract the code from the response
+code = response.choices[0].message.content
+
+# Execute code in E2B Sandbox
+if code:
+    with Sandbox() as sandbox:
+        execution = sandbox.run_code(code)
+        result = execution.text
+
+    print(result)
+
+Copy
+Copied!
+Function calling
+# pip install openai e2b-code-interpreter
+import json
+from openai import OpenAI
+from e2b_code_interpreter import Sandbox
+
+# Create OpenAI client
+client = OpenAI()
+model = "gpt-4o"
+
+# Define the messages
+messages = [
+    {
+        "role": "user",
+        "content": "Calculate how many r's are in the word 'strawberry'"
+    }
+]
+
+# Define the tools
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "execute_python",
+        "description": "Execute python code in a Jupyter notebook cell and return result",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The python code to execute in a single cell"
+                }
+            },
+            "required": ["code"]
+        }
+    }
+}]
+
+# Generate text with OpenAI
+response = client.chat.completions.create(
+    model=model,
+    messages=messages,
+    tools=tools,
+)
+
+# Append the response message to the messages list
+response_message = response.choices[0].message
+messages.append(response_message)
+
+# Execute the tool if it's called by the model
+if response_message.tool_calls:
+    for tool_call in response_message.tool_calls:
+        if tool_call.function.name == "execute_python":
+            # Create a sandbox and execute the code
+            with Sandbox() as sandbox:
+                code = json.loads(tool_call.function.arguments)['code']
+                execution = sandbox.run_code(code)
+                result = execution.text
+
+            # Send the result back to the model
+            messages.append({
+                "role": "tool",
+                "name": "execute_python",
+                "content": result,
+                "tool_call_id": tool_call.id,
+            })
+
+# Generate the final response
+final_response = client.chat.completions.create(
+    model=model,
+    messages=messages
+)
+
+print(final_response.choices[0].message.content)
+
+Copy
+Copied!
+Anthropic
+Simple
+# pip install anthropic e2b-code-interpreter
+from anthropic import Anthropic
+from e2b_code_interpreter import Sandbox
+
+# Create Anthropic client
+anthropic = Anthropic()
+system_prompt = "You are a helpful assistant that can execute python code in a Jupyter notebook. Only respond with the code to be executed and nothing else. Strip backticks in code blocks."
+prompt = "Calculate how many r's are in the word 'strawberry'"
+
+# Send messages to Anthropic API
+response = anthropic.messages.create(
+    model="claude-3-5-sonnet-20240620",
+    max_tokens=1024,
+    messages=[
+        {"role": "assistant", "content": system_prompt},
+        {"role": "user", "content": prompt}
+    ]
+)
+
+# Extract code from response
+code = response.content[0].text
+
+# Execute code in E2B Sandbox
+with Sandbox() as sandbox:
+    execution = sandbox.run_code(code)
+    result = execution.logs.stdout
+
+print(result)
+
+Copy
+Copied!
+Function calling
+# pip install anthropic e2b-code-interpreter
+from anthropic import Anthropic
+from e2b_code_interpreter import Sandbox
+
+# Create Anthropic client
+client = Anthropic()
+model = "claude-3-5-sonnet-20240620"
+
+# Define the messages
+messages = [
+    {
+        "role": "user",
+        "content": "Calculate how many r's are in the word 'strawberry'"
+    }
+]
+
+# Define the tools
+tools = [{
+    "name": "execute_python",
+    "description": "Execute python code in a Jupyter notebook cell and return (not print) the result",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "code": {
+                "type": "string",
+                "description": "The python code to execute in a single cell"
+            }
+        },
+        "required": ["code"]
+    }
+}]
+
+# Generate text with Anthropic
+message = client.messages.create(
+    model=model,
+    max_tokens=1024,
+    messages=messages,
+    tools=tools
+)
+
+# Append the response message to the messages list
+messages.append({
+    "role": "assistant",
+    "content": message.content
+})
+
+# Execute the tool if it's called by the model
+if message.stop_reason == "tool_use":
+    tool_use = next(block for block in message.content if block.type == "tool_use")
+    tool_name = tool_use.name
+    tool_input = tool_use.input
+
+    if tool_name == "execute_python":
+        with Sandbox() as sandbox:
+            code = tool_input['code']
+            execution = sandbox.run_code(code)
+            result = execution.text
+
+        # Append the tool result to the messages list
+        messages.append({
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": tool_use.id,
+                    "content": result,
+                }
+            ],
+        })
+
+# Generate the final response
+final_response = client.messages.create(
+    model=model,
+    max_tokens=1024,
+    messages=messages,
+    tools=tools
+)
+
+print(final_response.content[0].text)
+
+Copy
+Copied!
+Mistral
+Simple
+# pip install mistralai e2b-code-interpreter
+import os
+from mistralai import Mistral
+from e2b_code_interpreter import Sandbox
+
+# Create Mistral client
+client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
+system_prompt = "You are a helpful assistant that can execute python code in a Jupyter notebook. Only respond with the code to be executed and nothing else. Strip backticks in code blocks."
+prompt = "Calculate how many r's are in the word 'strawberry'"
+
+# Send the prompt to the model
+response = client.chat.complete(
+    model="codestral-latest",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt}
+    ]
+)
+
+# Extract the code from the response
+code = response.choices[0].message.content
+
+# Execute code in E2B Sandbox
+with Sandbox() as sandbox:
+    execution = sandbox.run_code(code)
+    result = execution.text
+
+print(result)
+
+Copy
+Copied!
+Function calling
+# pip install mistralai e2b-code-interpreter
+import os
+import json
+from mistralai import Mistral
+from e2b_code_interpreter import Sandbox
+
+# Create Mistral client
+client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
+model = "mistral-large-latest"
+messages = [
+    {
+        "role": "user",
+        "content": "Calculate how many r's are in the word 'strawberry'"
+    }
+]
+
+# Define the tools
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "execute_python",
+        "description": "Execute python code in a Jupyter notebook cell and return result",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The python code to execute in a single cell"
+                }
+            },
+            "required": ["code"]
+        }
+    }
+}]
+
+# Send the prompt to the model
+response = client.chat.complete(
+    model=model,
+    messages=messages,
+    tools=tools
+)
+
+# Append the response message to the messages list
+response_message = response.choices[0].message
+messages.append(response_message)
+
+# Execute the tool if it's called by the model
+if response_message.tool_calls:
+    for tool_call in response_message.tool_calls:
+        if tool_call.function.name == "execute_python":
+            # Create a sandbox and execute the code
+            with Sandbox() as sandbox:
+                code = json.loads(tool_call.function.arguments)['code']
+                execution = sandbox.run_code(code)
+                result = execution.text
+
+            # Send the result back to the model
+            messages.append({
+                "role": "tool",
+                "name": "execute_python",
+                "content": result,
+                "tool_call_id": tool_call.id,
+            })
+
+# Generate the final response
+final_response = client.chat.complete(
+    model=model,
+    messages=messages,
+)
+
+print(final_response.choices[0].message.content)
+
+Copy
+Copied!
+Groq
+
+# pip install groq e2b-code-interpreter
+import os
+from groq import Groq
+from e2b_code_interpreter import Sandbox
+
+api_key = os.environ["GROQ_API_KEY"]
+
+# Create Groq client
+client = Groq(api_key=api_key)
+system_prompt = "You are a helpful assistant that can execute python code in a Jupyter notebook. Only respond with the code to be executed and nothing else. Strip backticks in code blocks."
+prompt = "Calculate how many r's are in the word 'strawberry.'"
+
+# Send the prompt to the model
+response = client.chat.completions.create(
+    model="llama3-70b-8192",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt},
+    ]
+)
+
+# Extract the code from the response
+code = response.choices[0].message.content
+
+# Execute code in E2B Sandbox
+with Sandbox() as sandbox:
+    execution = sandbox.run_code(code)
+    result = execution.text
+
+print(result)
+
+
+Copy
+Copied!
+Vercel AI SDK
+Vercel's AI SDK offers support for multiple different LLM providers through a unified JavaScript interface that's easy to use.
+
+Simple
+// npm install ai @ai-sdk/openai @e2b/code-interpreter
+import { openai } from '@ai-sdk/openai'
+import { generateText } from 'ai'
+import { Sandbox } from '@e2b/code-interpreter'
+
+// Create OpenAI client
+const model = openai('gpt-4o')
+const system = "You are a helpful assistant that can execute python code in a Jupyter notebook. Only respond with the code to be executed and nothing else. Strip backticks in code blocks."
+const prompt = "Calculate how many r's are in the word 'strawberry'"
+
+// Generate code with OpenAI
+const { text: code } = await generateText({
+  model,
+  system,
+  prompt
+})
+
+// Run the code in E2B Sandbox
+const sandbox = await Sandbox.create()
+const { text, results, logs, error } = await sandbox.runCode(code)
+
+console.log(text)
+
+Copy
+Copied!
+Function calling
+// npm install ai @ai-sdk/openai zod @e2b/code-interpreter
+import { openai } from '@ai-sdk/openai'
+import { generateText } from 'ai'
+import z from 'zod'
+import { Sandbox } from '@e2b/code-interpreter'
+
+// Create OpenAI client
+const model = openai('gpt-4o')
+
+const prompt = "Calculate how many r's are in the word 'strawberry'"
+
+// Generate text with OpenAI
+const { text } = await generateText({
+  model,
+  prompt,
+  tools: {
+    // Define a tool that runs code in a sandbox
+    execute_python: {
+      description: 'Execute python code in a Jupyter notebook cell and return result',
+      parameters: z.object({
+        code: z.string().describe('The python code to execute in a single cell'),
+      }),
+      execute: async ({ code }) => {
+        // Create a sandbox, execute LLM-generated code, and return the result
+        const sandbox = await Sandbox.create()
+        const { text, results, logs, error } = await sandbox.runCode(code)
+        return results
+      },
+    },
+  },
+  // This is required to feed the tool call result back to the LLM
+  maxSteps: 2
+})
+
+console.log(text)
+
+Copy
+Copied!
+CrewAI
+CrewAI is a platform for building AI agents.
+
+# pip install crewai e2b-code-interpreter
+from crewai.tools import tool
+from crewai import Agent, Task, Crew, LLM
+from e2b_code_interpreter import Sandbox
+
+# Update tool definition using the decorator
+@tool("Python Interpreter")  
+def execute_python(code: str) -> str:
+    """
+    Execute Python code and return the results.
+    """
+    with Sandbox() as sandbox:
+        execution = sandbox.run_code(code)
+        return execution.text
+
+# Define the agent
+python_executor = Agent(
+    role='Python Executor',
+    goal='Execute Python code and return the results',
+    backstory='You are an expert Python programmer capable of executing code and returning results.',
+    tools=[execute_python],
+    llm=LLM(model="gpt-4o")
+)
+
+# Define the task
+execute_task = Task(
+    description="Calculate how many r's are in the word 'strawberry'",
+    agent=python_executor,
+    expected_output="The number of r's in the word 'strawberry'"
+)
+
+# Create the crew
+code_execution_crew = Crew(
+    agents=[python_executor],
+    tasks=[execute_task],
+    verbose=True,
+)
+
+# Run the crew
+result = code_execution_crew.kickoff()
+print(result)
+
+Copy
+Copied!
+LangChain
+LangChain offers support multiple different LLM providers.
+
+Simple
+# pip install langchain langchain-openai e2b-code-interpreter
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from e2b_code_interpreter import Sandbox
+
+system_prompt = "You are a helpful assistant that can execute python code in a Jupyter notebook. Only respond with the code to be executed and nothing else. Strip backticks in code blocks."
+prompt = "Calculate how many r's are in the word 'strawberry'"
+
+# Create LangChain components
+llm = ChatOpenAI(model="gpt-4o")
+prompt_template = ChatPromptTemplate.from_messages([
+    ("system", system_prompt),
+    ("human", "{input}")
+])
+
+output_parser = StrOutputParser()
+
+# Create the chain
+chain = prompt_template | llm | output_parser
+
+# Run the chain
+code = chain.invoke({"input": prompt})
+
+# Execute code in E2B Sandbox
+with Sandbox() as sandbox:
+    execution = sandbox.run_code(code)
+    result = execution.text
+
+print(result)
+
+Copy
+Copied!
+Agent
+# pip install langchain langchain-openai e2b-code-interpreter
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import tool
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_openai import ChatOpenAI
+from e2b_code_interpreter import Sandbox
+
+system_prompt = "You are a helpful assistant that can execute python code in a Jupyter notebook. Only respond with the code to be executed and nothing else. Strip backticks in code blocks."
+prompt = "Calculate how many r's are in the word 'strawberry'"
+
+# Define the tool
+@tool
+def execute_python(code: str):
+    """
+    Execute python code in a Jupyter notebook.
+    """
+    with Sandbox() as sandbox:
+        execution = sandbox.run_code(code)
+        return execution.text
+
+# Define LangChain components
+prompt_template = ChatPromptTemplate.from_messages([
+    ("system", system_prompt),
+    ("human", "{input}"),
+    ("placeholder", "{agent_scratchpad}"),
+])
+
+tools = [execute_python]
+llm = ChatOpenAI(model="gpt-4o", temperature=0)
+
+agent = create_tool_calling_agent(llm, tools, prompt_template)
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+# Run the agent
+agent_executor.invoke({"input": prompt})
+
+Copy
+Copied!
+Function calling
+# pip install langchain langchain-openai e2b-code-interpreter
+from langchain_openai import ChatOpenAI
+from langchain.tools import Tool
+from langchain.schema import HumanMessage, AIMessage, FunctionMessage
+from e2b_code_interpreter import Sandbox
+
+def execute_python(code: str):
+    with Sandbox() as sandbox:
+        execution = sandbox.run_code(code)
+        return execution.text
+
+# Define a tool that uses the E2B Sandbox
+e2b_sandbox_tool = Tool(
+    name="execute_python",
+    func=execute_python,
+    description="Execute python code in a Jupyter notebook cell and return result"
+)
+
+# Initialize the language model and bind the tool
+llm = ChatOpenAI(model="gpt-4o").bind_tools([e2b_sandbox_tool])
+
+# Define the messages
+messages = [
+    HumanMessage(content="Calculate how many 'r's are in the word 'strawberry'.")
+]
+
+# Run the model with a prompt
+result = llm.invoke(messages)
+messages.append(AIMessage(content=result.content))
+
+# Check if the model called the tool
+if result.additional_kwargs.get('tool_calls'):
+    tool_call = result.additional_kwargs['tool_calls'][0]
+    if tool_call['function']['name'] == "execute_python":
+        code = tool_call['function']['arguments']
+        execution_result = execute_python(code)
+
+        # Send the result back to the model
+        messages.append(
+            FunctionMessage(name="execute_python", content=execution_result)
+        )
+
+final_result = llm.invoke(messages)
+print(final_result.content)
+
+Copy
+Copied!
+LlamaIndex
+LlamaIndex offers support multiple different LLM providers.
+
+# pip install llama-index e2b-code-interpreter
+from llama_index.core.tools import FunctionTool
+from llama_index.llms.openai import OpenAI
+from llama_index.core.agent import ReActAgent
+from e2b_code_interpreter import Sandbox
+
+# Define the tool
+def execute_python(code: str):
+    with Sandbox() as sandbox:
+        execution = sandbox.run_code(code)
+        return execution.text
+
+e2b_sandbox_tool = FunctionTool.from_defaults(
+    name="execute_python",
+    description="Execute python code in a Jupyter notebook cell and return result",
+    fn=execute_python
+)
+
+# Initialize LLM
+llm = OpenAI(model="gpt-4o")
+
+# Initialize ReAct agent
+agent = ReActAgent.from_tools([e2b_sandbox_tool], llm=llm, verbose=True)
+agent.chat("Calculate how many r's are in the word 'strawberry'")
+
+Copy
+Copied!
+Ollama
+# pip install ollama
+import ollama
+from e2b_code_interpreter import Sandbox
+
+# Send the prompt to the model
+response = ollama.chat(
+    model="llama3.2",
+    messages=[{
+        "role": "system",
+        "content": "You are a helpful assistant that can execute python code in a Jupyter notebook. Only respond with the code to be executed and nothing else. Strip backticks in code blocks."
+    },
+    {
+        "role": "user",
+        "content": "Calculate how many r's are in the word 'strawberry'"
+    }
+])
+
+# Extract the code from the response
+code = response['message']['content']
+
+# Execute code in E2B Sandbox
+with Sandbox() as sandbox:
+    execution = sandbox.run_code(code)
+    result = execution.logs.stdout
+
+print(result)
+
+Copy
+Copied!
+
+Upload & downloads files
+E2B Sandbox allows you to upload and downloads file to and from the Sandbox.
+
+An alternative way to get your data to the sandbox is to create a custom sandbox template.
+
+Upload file
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+
+// Read local file relative to the current working directory
+const content = fs.readFileSync('local/file')
+
+const sbx = await Sandbox.create()
+// Upload file to the sandbox to absolute path '/home/user/my-file'
+await sbx.files.write('/home/user/my-file', content)
+
+Copy
+Copied!
+Upload multiple files
+Currently, if you want to upload multiple files, you need to upload each one of the separately. We're working on a better solution.
+
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+
+// Read local file relative to the current working directory
+const fileA = fs.readFileSync('local/file/a')
+const fileB = fs.readFileSync('local/file/b')
+
+const sbx = await Sandbox.create()
+// Upload file A to the sandbox to absolute path '/home/user/my-file-a'
+await sbx.files.write('/home/user/my-file-a', fileA)
+// Upload file B to the sandbox to absolute path '/home/user/my-file-b'
+await sbx.files.write('/home/user/my-file-b', fileB)
+
+Copy
+Copied!
+Upload directory
+We currently don't support an easy way to upload a whole directory. You need to upload each file separately.
+
+We're working on a better solution.
+
+Download file
+To download a file, you need to first get the file's content and then write it to a local file.
+
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+
+const sbx = await Sandbox.create()
+// Download file from the sandbox to absolute path '/home/user/my-file'
+const content = await sbx.files.read('/home/user/my-file')
+// Write file to local path relative to the current working directory
+fs.writeFileSync('local/file', content)
+
+Copy
+Copied!
+Download multiple files
+To download multiple files, you need to download each one of them separately from the sandbox.
+
+We're working on a better solution.
+
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+
+const sbx = await Sandbox.create()
+// Download file A from the sandbox by absolute path '/home/user/my-file-a'
+const contentA = await sbx.files.read('/home/user/my-file-a')
+// Write file A to local path relative to the current working directory
+fs.writeFileSync('local/file/a', contentA)
+
+// Download file B from the sandbox by absolute path '/home/user/my-file-b'
+const contentB = await sbx.files.read('/home/user/my-file-b')
+// Write file B to local path relative to the current working directory
+fs.writeFileSync('local/file/b', contentB)
+
+Copy
+Copied!
+Download directory
+We currently don't support an easy way to download a whole directory. You need to download each file separately.
+
+We're working on a better solution.
+
+Install custom packages
+There are two ways to install custom packages in the E2B Sandbox.
+
+Create custom sandbox with preinstalled packages.
+Install packages during the sandbox runtime.
+Create a custom sandbox
+Use this option if you know beforehand what packages you need in the sandbox.
+
+Prerequisites:
+
+E2B CLI
+Docker running
+Custom sandbox template is a Docker image that we automatically convert to a sandbox that you can then start with our SDK.
+
+1. Install E2B CLI
+Install the E2B CLI globally on your machine with NPM.
+
+Terminal
+npm i -g @e2b/cli
+
+Copy
+Copied!
+2. Login to E2B CLI
+Before you can create a custom sandbox, you need to login to E2B CLI.
+
+Terminal
+e2b auth login
+
+Copy
+Copied!
+2. Initialize a sandbox template
+Terminal
+e2b template init
+
+Copy
+Copied!
+3. Specify the packages you need in e2b.Dockerfile
+Edit the E2B Dockerfile to install the packages you need.
+
+You need to use the e2bdev/code-interpreter:latest base image.
+
+e2b.Dockerfile
+FROM e2bdev/code-interpreter:latest
+
+RUN pip install cowsay
+RUN npm install cowsay
+
+Copy
+Copied!
+4. Build the sandbox template
+Run the following command to build the sandbox template.
+
+Terminal
+e2b template build -c "/root/.jupyter/start-up.sh"
+
+Copy
+Copied!
+This will take a while, as it convert the Docker image to a sandbox which is a small VM. At the end of the process you will see the sandbox ID like this:
+
+Running postprocessing. It can take up to few minutes.
+
+Postprocessing finished.
+
+✅ Building sandbox template YOUR_TEMPLATE_ID finished.
+
+Copy
+Copied!
+5. Start your custom sandbox
+Now you can pass the template ID to the SDK to start your custom sandbox.
+
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+
+const sbx = Sandbox.create({
+  template: 'YOUR_TEMPLATE_ID',
+})
+
+Copy
+Copied!
+Install packages during the sandbox runtime
+Use this option if don't know beforehand what packages you need in the sandbox. You can install packages with the package manager of your choice.
+
+The packages installed during the runtime are available only in the running sandbox instance. When you start a new sandbox instance, the packages are not be available.
+
+1. Install Python packages with PIP
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+
+const sbx = Sandbox.create()
+sbx.commands.run('pip install cowsay') // This will install the cowsay package
+sbx.runCode(`
+  import cowsay
+  cowsay.cow("Hello, world!")
+`)
+
+Copy
+Copied!
+2. Install Node.js packages with NPM
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+
+const sbx = Sandbox.create()
+sbx.commands.run('npm install cowsay') // This will install the cowsay package
+sbx.runCode(`
+  const cowsay = require('cowsay')
+  console.log(cowsay.say({ text: 'Hello, world!' }))
+`, { language: 'javascript' })
+
+Copy
+Copied!
+3. Install packages with package manager of your choice
+Since E2B Sandboxes are Debian based machines, you can use any package manager supported by Debian. You just need to make sure that the package manager is already installed in the sandbox.
+
+For example, to install curl and git, you can use the following commands:
+
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+
+const sbx = Sandbox.create()
+await sbx.commands.run('apt-get update && apt-get install -y curl git')
+
+Copy
+Copied!
+
+Analyze data with AI
+You can use E2B Sandbox to run AI-generated code to analyze data. Here's how the AI data analysis workflow usually looks like:
+
+Your user has a dataset in CSV format or other formats.
+You prompt the LLM to generate code (usually Python) based on the user's data.
+The sandbox runs the AI-generated code and returns the results.
+You display the results to the user.
+Example: Analyze CSV file with E2B and Claude 3.5 Sonnet
+This short example will show you how to use E2B Sandbox to run AI-generated code to analyze CSV data.
+
+Table of Contents
+Install dependencies
+Set your API keys
+Download example CSV file
+Initialize the sandbox and upload the dataset to the sandbox
+Prepare the method for running AI-generated code
+Prepare the prompt and initialize Anthropic client
+Connect the sandbox to the LLM with tool calling
+Parse the LLM response and run the AI-generated code in the sandbox
+Save the generated chart
+Run the code
+Full final code
+1. Install dependencies
+Install the E2B SDK and Claude SDK to your project by running the following command in your terminal.
+
+
+JavaScript & TypeScript
+
+Python
+Terminal
+npm i @e2b/code-interpreter @anthropic-ai/sdk dotenv
+
+Copy
+Copied!
+2. Set your API keys
+Get your E2B API key from E2B Dashboard.
+Get your Claude API key from Claude API Dashboard.
+Paste the keys into your .env file.
+.env
+E2B_API_KEY=e2b_***
+ANTHROPIC_API_KEY=sk-ant-***
+
+Copy
+Copied!
+3. Download example CSV file
+We'll be using the publicly available dataset of about 10,000 movies.
+
+Click the "Download" button at the top of the page.
+Select "Download as zip (2 MB)".
+Unzip the file and you should see dataset.csv file. Move it to the root of your project.
+4. Initialize the sandbox and upload the dataset to the sandbox
+We'll upload the dataset from the third step to the sandbox and save it as dataset.csv file.
+
+
+JavaScript & TypeScript
+
+Python
+index.ts
+import 'dotenv/config'
+import fs from 'fs'
+import { Sandbox } from '@e2b/code-interpreter'
+
+// Create sandbox
+const sbx = await Sandbox.create()
+
+// Upload the dataset to the sandbox
+const content = fs.readFileSync('dataset.csv')
+const datasetPathInSandbox = await sbx.files.write('dataset.csv', content)
+
+Copy
+Copied!
+5. Prepare the method for running AI-generated code
+Add the following code to the file. Here we're adding the method for code execution.
+
+
+JavaScript & TypeScript
+
+Python
+index.ts
+// ... code from the previous step
+
+async function runAIGeneratedCode(aiGeneratedCode: string) {
+  console.log('Running the code in the sandbox....')
+  const execution = await sbx.runCode(aiGeneratedCode)
+  console.log('Code execution finished!')
+  console.log(execution)
+}
+
+Copy
+Copied!
+6. Prepare the prompt and initialize Anthropic client
+The prompt we'll be using describes the dataset and the analysis we want to perform like this:
+
+Describe the columns in the CSV dataset.
+Ask the LLM what we want to analyze - here we want to analyze the vote average over time. We're asking for a chart as the output.
+Instruct the LLM to generate Python code for the data analysis.
+
+JavaScript & TypeScript
+
+Python
+index.ts
+import Anthropic from '@anthropic-ai/sdk'
+
+const prompt = `
+I have a CSV file about movies. It has about 10k rows. It's saved in the sandbox at ${dataset_path_in_sandbox.path}.
+These are the columns:
+- 'id': number, id of the movie
+- 'original_language': string like "eng", "es", "ko", etc
+- 'original_title': string that's name of the movie in the original language
+- 'overview': string about the movie
+- 'popularity': float, from 0 to 9137.939. It's not normalized at all and there are outliers
+- 'release_date': date in the format yyyy-mm-dd
+- 'title': string that's the name of the movie in english
+- 'vote_average': float number between 0 and 10 that's representing viewers voting average
+- 'vote_count': int for how many viewers voted
+
+I want to better understand how the vote average has changed over the years. Write Python code that analyzes the dataset based on my request and produces right chart accordingly`
+
+const anthropic = new Anthropic()
+console.log('Waiting for the model response...')
+const msg = await anthropic.messages.create({
+  model: 'claude-3-5-sonnet-20240620',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: prompt }],
+})
+
+Copy
+Copied!
+7. Connect the sandbox to the LLM with tool calling
+We'll use Claude's ability to use tools (function calling) to run the code in the sandbox.
+
+The way we'll do it is by connecting the method for running AI-generated code we created in the previous step to the Claude model.
+
+Update the initialization of the Anthropic client to include the tool use like this:
+
+
+JavaScript & TypeScript
+
+Python
+index.ts
+const msg = await anthropic.messages.create({
+  model: 'claude-3-5-sonnet-20240620',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: prompt }],
+  tools: [ 
+     { 
+      name: 'run_python_code', 
+      description: 'Run Python code', 
+      input_schema: { 
+        type: 'object', 
+        properties: { 
+          code: { 
+            type: 'string', 
+            description: 'The Python code to run', 
+          }, 
+        }, 
+        required: ['code'], 
+      }, 
+    }, 
+  ], 
+})
+
+Copy
+Copied!
+8. Parse the LLM response and run the AI-generated code in the sandbox
+Now we'll parse the msg object to get the code from the LLM's response based on the tool we created in the previous step. Once we have the code, we'll pass it to the runAIGeneratedCode method in JavaScript or run_ai_generated_code method in Python we created in the previous step to run the code in the sandbox.
+
+
+JavaScript & TypeScript
+
+Python
+index.ts
+// ... code from the previous steps
+
+interface CodeRunToolInput {
+  code: string
+}
+
+for (const contentBlock of msg.content) {
+  if (contentBlock.type === 'tool_use') {
+    if (contentBlock.name === 'run_python_code') {
+      const code = (contentBlock.input as CodeRunToolInput).code
+      console.log('Will run following code in the sandbox', code)
+      // Execute the code in the sandbox
+      await runAIGeneratedCode(code)
+    }
+  }
+}
+
+Copy
+Copied!
+9. Save the generated chart
+When running code in the sandbox for data analysis, you can get different types of results. Including stdout, stderr, charts, tables, text, runtime errors, and more.
+
+In this example we're specifically asking for a chart so we'll be looking for the chart in the results.
+
+Let's update the runAIGeneratedCode method in JavaScript and run_ai_generated_code method in Python to check for the chart in the results and save it to the file.
+
+
+JavaScript & TypeScript
+
+Python
+index.ts
+async function runAIGeneratedCode(aiGeneratedCode: string) {
+  console.log('Running the code in the sandbox....')
+  const execution = await sbx.runCode(aiGeneratedCode)
+  console.log('Code execution finished!')
+
+  // First let's check if the code ran successfully.
+  if (execution.error) { 
+    console.error('AI-generated code had an error.') 
+    console.log(execution.error.name) 
+    console.log(execution.error.value) 
+    console.log(execution.error.traceback) 
+    process.exit(1) 
+  } 
+
+  // Iterate over all the results and specifically check for png files that will represent the chart.
+  let resultIdx = 0 
+  for (const result of execution.results) { 
+    if (result.png) { 
+      // Save the png to a file
+      // The png is in base64 format.
+      fs.writeFileSync(`chart-${resultIdx}.png`, result.png, { encoding: 'base64' }) 
+      console.log(`Chart saved to chart-${resultIdx}.png`) 
+      resultIdx++ 
+    } 
+  } 
+}
+
+Copy
+Copied!
+10. Run the code
+Now you can run the whole code to see the results.
+
+
+JavaScript & TypeScript
+
+Python
+Terminal
+npx tsx index.ts
+
+Copy
+Copied!
+You should see the chart in the root of your project that will look similar to this:
+
+Chart visualizing voting average of our dataset over time
+Full final code
+Check the full code in JavaScript and Python below:
+
+
+JavaScript & TypeScript
+
+Python
+index.ts
+import 'dotenv/config'
+import fs from 'fs'
+import Anthropic from '@anthropic-ai/sdk'
+import { Sandbox } from '@e2b/code-interpreter'
+
+// Create sandbox
+const sbx = await Sandbox.create()
+
+// Upload the dataset to the sandbox
+const content = fs.readFileSync('dataset.csv')
+const datasetPathInSandbox = await sbx.files.write('/home/user/dataset.csv', content)
+
+async function runAIGeneratedCode(aiGeneratedCode: string) {
+  const execution = await sbx.runCode(aiGeneratedCode)
+  if (execution.error) {
+    console.error('AI-generated code had an error.')
+    console.log(execution.error.name)
+    console.log(execution.error.value)
+    console.log(execution.error.traceback)
+    process.exit(1)
+  }
+  // Iterate over all the results and specifically check for png files that will represent the chart.
+  let resultIdx = 0
+  for (const result of execution.results) {
+    if (result.png) {
+      // Save the png to a file
+      // The png is in base64 format.
+      fs.writeFileSync(`chart-${resultIdx}.png`, result.png, { encoding: 'base64' })
+      console.log('Chart saved to chart-${resultIdx}.png')
+      resultIdx++
+    }
+  }
+}
+
+const prompt = `
+I have a CSV file about movies. It has about 10k rows. It's saved in the sandbox at ${datasetPathInSandbox.path}.
+These are the columns:
+- 'id': number, id of the movie
+- 'original_language': string like "eng", "es", "ko", etc
+- 'original_title': string that's name of the movie in the original language
+- 'overview': string about the movie
+- 'popularity': float, from 0 to 9137.939. It's not normalized at all and there are outliers
+- 'release_date': date in the format yyyy-mm-dd
+- 'title': string that's the name of the movie in english
+- 'vote_average': float number between 0 and 10 that's representing viewers voting average
+- 'vote_count': int for how many viewers voted
+
+I want to better understand how the vote average has changed over the years. Write Python code that analyzes the dataset based on my request and produces right chart accordingly`
+
+const anthropic = new Anthropic()
+console.log('Waiting for the model response...')
+const msg = await anthropic.messages.create({
+  model: 'claude-3-5-sonnet-20240620',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: prompt }],
+  tools: [
+    {
+      name: 'run_python_code',
+      description: 'Run Python code',
+      input_schema: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description: 'The Python code to run',
+          },
+        },
+        required: ['code'],
+      },
+    },
+  ],
+})
+
+interface CodeRunToolInput {
+  code: string
+}
+
+for (const contentBlock of msg.content) {
+  if (contentBlock.type === 'tool_use') {
+    if (contentBlock.name === 'run_python_code') {
+      const code = (contentBlock.input as CodeRunToolInput).code
+      console.log('Will run following code in the sandbox', code)
+      // Execute the code in the sandbox
+      await runAIGeneratedCode(code)
+    }
+  }
+}
+
+Pre-installed libraries
+The sandbox comes with a set of pre-installed Python libraries for data analysis but you can install additional packages:
+
+aiohttp (v3.9.3)
+beautifulsoup4 (v4.12.3)
+bokeh (v3.3.4)
+gensim (v4.3.2)
+imageio (v2.34.0)
+joblib (v1.3.2)
+librosa (v0.10.1)
+matplotlib (v3.8.3)
+nltk (v3.8.1)
+numpy (v1.26.4)
+opencv-python (v4.9.0.80)
+openpyxl (v3.1.2)
+pandas (v1.5.3)
+plotly (v5.19.0)
+pytest (v8.1.0)
+python-docx (v1.1.0)
+pytz (v2024.1)
+requests (v2.26.0)
+scikit-image (v0.22.0)
+scikit-learn (v1.4.1.post1)
+scipy (v1.12.0)
+seaborn (v0.13.2)
+soundfile (v0.12.1)
+spacy (v3.7.4)
+textblob (v0.18.0)
+tornado (v6.4)
+urllib3 (v1.26.7)
+xarray (v2024.2.0)
+xlrd (v2.0.1)
+sympy (v1.12)
+
+Create charts & visualizations
+E2B Sandbox allows you to create charts and visualizations by executing Python code inside the sandbox with runCode() method in JavaScript and run_code() method in Python.
+
+These charts and visualizations can be static or interactive plots.
+
+Static charts
+Every time you run Python code with runCode() in JavaScript or run_code() method in Python, the code is executed in a headless Jupyter server inside the sandbox.
+
+E2B automatically detects any plots created with Matplotlib and sends them back to the client as images encoded in the base64 format. These images are directly accesible on the result items in the execution.results array.
+
+Here's how to retrieve a static chart from the executed Python code that contains a Matplotlib plot.
+
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox } from '@e2b/code-interpreter'
+import fs from 'fs'
+
+const codeToRun = `
+import matplotlib.pyplot as plt
+
+plt.plot([1, 2, 3, 4])
+plt.ylabel('some numbers')
+plt.show()
+`
+const sandbox = await Sandbox.create()
+
+// Run the code inside the sandbox
+const execution = await sandbox.runCode(codeToRun)
+
+ // There's only one result in this case - the plot displayed with `plt.show()`
+const firstResult = execution.results[0]
+
+if (firstResult.png) {
+  // Save the png to a file. The png is in base64 format.
+  fs.writeFileSync('chart.png', firstResult.png, { encoding: 'base64' })
+  console.log('Chart saved as chart.png')
+}
+
+Copy
+Copied!
+The code in the variable codeToRun/code_to_run will produce this following plot that we're saving as chart.png file.
+
+Static chart produced by the code
+
+Interactive charts
+E2B also allows you to create interactive charts with custom styling.
+
+E2B automatically detects charts when executing Python code with runCode() in JavaScript or run_code() in Python. The Python code must include Matplotlib charts.
+
+When a chart is detected, E2B sends the data of the chart back to the client. You can access the chart in the execution.results array where each item is a Result object with the chart property.
+
+Try out AI Data Analyst - a Next.js app that uses E2B to create interactive charts.
+
+Here's a simple example of bar chart:
+
+
+JavaScript & TypeScript
+
+Python
+import { Sandbox, BarChart } from '@e2b/code-interpreter'
+
+const code = `
+import matplotlib.pyplot as plt
+
+# Prepare data
+authors = ['Author A', 'Author B', 'Author C', 'Author D']
+sales = [100, 200, 300, 400]
+
+# Create and customize the bar chart
+plt.figure(figsize=(10, 6))
+plt.bar(authors, sales, label='Books Sold', color='blue')
+plt.xlabel('Authors')
+plt.ylabel('Number of Books Sold')
+plt.title('Book Sales by Authors')
+
+# Display the chart
+plt.tight_layout()
+plt.show()
+`
+
+const sandbox = await Sandbox.create()
+const result = await sandbox.runCode(code)
+const chart = result.results[0].chart as BarChart
+
+console.log('Type:', chart.type)
+console.log('Title:', chart.title)
+console.log('X Label:', chart.x_label)
+console.log('Y Label:', chart.y_label)
+console.log('X Unit:', chart.x_unit)
+console.log('Y Unit:', chart.y_unit)
+console.log('Elements:', chart.elements)
+
+Copy
+Copied!
+The code above will output the following:
+
+
+JavaScript & TypeScript
+
+Python
+Terminal
+Type: bar
+Title: Book Sales by Authors
+X Label: Authors
+Y Label: Number of Books Sold
+X Unit: null
+Y Unit: null
+Elements: [
+  {
+    label: "Author A",
+    group: "Books Sold",
+    value: 100,
+  }, {
+    label: "Author B",
+    group: "Books Sold",
+    value: 200,
+  }, {
+    label: "Author C",
+    group: "Books Sold",
+    value: 300,
+  }, {
+    label: "Author D",
+    group: "Books Sold",
+    value: 400,
+  }
+]
+
+Copy
+Copied!
+You can send this data to your frontend to create an interactive chart with your favorite charting library.
+
+Supported intertactive charts
+The following charts are currently supported:
+
+Line chart
+Bar chart
+Scatter plot
+Pie chart
+Box and whisker plot

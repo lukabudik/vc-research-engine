@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VC Research Engine - Example Frontend</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #2c3e50;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+      }
+      button {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      button:hover {
+        background-color: #2980b9;
+      }
+      button:disabled {
+        background-color: #95a5a6;
+        cursor: not-allowed;
+      }
+      .progress {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .progress-item {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-left: 3px solid #3498db;
+        background-color: #f0f8ff;
+      }
+      .tool-item {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-left: 3px solid #e74c3c;
+        background-color: #fff0f0;
+      }
+      .phase-item {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-left: 3px solid #27ae60;
+        background-color: #e8f8f5;
+        font-weight: bold;
+      }
+      .error-item {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-left: 3px solid #c0392b;
+        background-color: #fadbd8;
+      }
+      .research-phases {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 15px;
+      }
+      .phase-pill {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 12px;
+        background-color: #ecf0f1;
+        color: #7f8c8d;
+      }
+      .phase-pill.active {
+        background-color: #27ae60;
+        color: white;
+      }
+      .dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+      .dashboard-item {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        background-color: white;
+      }
+      .dashboard-item h3 {
+        margin-top: 0;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+      }
+      .small {
+        grid-column: span 1;
+      }
+      .medium {
+        grid-column: span 2;
+      }
+      .large {
+        grid-column: span 3;
+      }
+      .people-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .person {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #3498db;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+      }
+      .person-details {
+        display: flex;
+        flex-direction: column;
+      }
+      .person-name {
+        font-weight: bold;
+      }
+      .person-role {
+        font-size: 0.9em;
+        color: #7f8c8d;
+      }
+      .list-item {
+        margin-bottom: 5px;
+      }
+      .stat-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #2c3e50;
+      }
+      .stat-description {
+        color: #7f8c8d;
+        font-size: 0.9em;
+      }
+      pre {
+        background-color: #f8f8f8;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>VC Research Engine - Example Frontend</h1>
+
+    <div class="container">
+      <div class="card">
+        <h2>Research a Startup</h2>
+        <div class="form-group">
+          <label for="apiKey">API Key</label>
+          <input
+            type="text"
+            id="apiKey"
+            value="your-secret-api-key-12345"
+            placeholder="Enter your API key"
+          />
+        </div>
+        <div class="form-group">
+          <label for="companyName">Company Name</label>
+          <input
+            type="text"
+            id="companyName"
+            placeholder="Enter company name (e.g., OpenAI, Anthropic)"
+          />
+        </div>
+        <div class="form-group">
+          <label for="researchDepth">Research Depth</label>
+          <select id="researchDepth">
+            <option value="standard">Standard</option>
+            <option value="detailed">Detailed</option>
+          </select>
+        </div>
+        <button id="startResearch">Start Research</button>
+        <button id="cancelResearch" disabled>Cancel Research</button>
+
+        <div id="progressContainer" class="progress" style="display: none">
+          <h3>Research Progress</h3>
+          <div id="progressItems"></div>
+        </div>
+      </div>
+
+      <div id="dashboardContainer" style="display: none">
+        <h2>Research Results</h2>
+        <div id="companyInfo" class="card">
+          <!-- Company info will be displayed here -->
+        </div>
+        <div id="dashboard" class="dashboard">
+          <!-- Dashboard components will be displayed here -->
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const apiKeyInput = document.getElementById("apiKey");
+        const companyNameInput = document.getElementById("companyName");
+        const researchDepthSelect = document.getElementById("researchDepth");
+        const startResearchButton = document.getElementById("startResearch");
+        const cancelResearchButton = document.getElementById("cancelResearch");
+        const progressContainer = document.getElementById("progressContainer");
+        const progressItems = document.getElementById("progressItems");
+        const dashboardContainer =
+          document.getElementById("dashboardContainer");
+        const companyInfoElement = document.getElementById("companyInfo");
+        const dashboardElement = document.getElementById("dashboard");
+
+        let websocket = null;
+
+        // Start research
+        startResearchButton.addEventListener("click", () => {
+          const apiKey = apiKeyInput.value.trim();
+          const companyName = companyNameInput.value.trim();
+          const researchDepth = researchDepthSelect.value;
+
+          if (!apiKey) {
+            alert("Please enter an API key");
+            return;
+          }
+
+          if (!companyName) {
+            alert("Please enter a company name");
+            return;
+          }
+
+          // Clear previous results
+          progressItems.innerHTML = "";
+          companyInfoElement.innerHTML = "";
+          dashboardElement.innerHTML = "";
+          dashboardContainer.style.display = "none";
+          progressContainer.style.display = "block";
+
+          // Disable start button and enable cancel button
+          startResearchButton.disabled = true;
+          cancelResearchButton.disabled = false;
+
+          // Connect to WebSocket
+          connectWebSocket(apiKey, companyName, researchDepth);
+        });
+
+        // Cancel research
+        cancelResearchButton.addEventListener("click", () => {
+          if (websocket) {
+            websocket.close();
+            websocket = null;
+          }
+
+          // Enable start button and disable cancel button
+          startResearchButton.disabled = false;
+          cancelResearchButton.disabled = true;
+
+          // Add cancellation message
+          addProgressItem("Research cancelled by user", "progress-item");
+        });
+
+        // Define research phases
+        const researchPhases = [
+          { id: "initialization", label: "Initialization" },
+          { id: "company_overview", label: "Company Overview" },
+          { id: "key_people", label: "Key People" },
+          { id: "business_model", label: "Business Model" },
+          { id: "tech_stack", label: "Tech Stack" },
+          { id: "market_size", label: "Market Size" },
+          { id: "growth_metrics", label: "Growth Metrics" },
+          { id: "clients", label: "Clients" },
+          { id: "social_media", label: "Social Media" },
+          { id: "competitors", label: "Competitors" },
+          { id: "media_mentions", label: "Media Mentions" },
+        ];
+
+        // Connect to WebSocket
+        function connectWebSocket(apiKey, companyName, researchDepth) {
+          // Close existing connection if any
+          if (websocket) {
+            websocket.close();
+          }
+
+          // Create new WebSocket connection
+          websocket = new WebSocket("ws://localhost:8000/ws/research");
+
+          // Create research phases UI
+          createResearchPhasesUI();
+
+          // WebSocket open event
+          websocket.onopen = () => {
+            console.log("WebSocket connection established");
+
+            // Send initial message with API key and company name
+            websocket.send(
+              JSON.stringify({
+                api_key: apiKey,
+                company_name: companyName,
+                params: {
+                  depth: researchDepth,
+                },
+              })
+            );
+          };
+
+          // WebSocket message event
+          websocket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+
+            switch (message.type) {
+              case "start":
+                addProgressItem(message.message, "progress-item");
+                break;
+              case "phase":
+                // Update the active phase
+                updateActivePhase(message.message);
+                addProgressItem(message.message, "phase-item");
+                break;
+              case "progress":
+                addProgressItem(message.message, "progress-item");
+                break;
+              case "tool":
+                addProgressItem(message.message, "tool-item");
+                break;
+              case "tool_result":
+                addProgressItem(message.message, "progress-item");
+                break;
+              case "complete":
+                addProgressItem(message.message, "progress-item");
+                break;
+              case "result":
+                // Display the results
+                displayResults(message.data);
+
+                // Enable start button and disable cancel button
+                startResearchButton.disabled = false;
+                cancelResearchButton.disabled = true;
+                break;
+              case "error":
+                addProgressItem(message.message, "error-item");
+
+                // Enable start button and disable cancel button
+                startResearchButton.disabled = false;
+                cancelResearchButton.disabled = true;
+                break;
+            }
+          };
+
+          // WebSocket error event
+          websocket.onerror = (error) => {
+            console.error("WebSocket error:", error);
+            addProgressItem("Error connecting to the server", "progress-item");
+
+            // Enable start button and disable cancel button
+            startResearchButton.disabled = false;
+            cancelResearchButton.disabled = true;
+          };
+
+          // WebSocket close event
+          websocket.onclose = () => {
+            console.log("WebSocket connection closed");
+
+            // Enable start button and disable cancel button
+            startResearchButton.disabled = false;
+            cancelResearchButton.disabled = true;
+          };
+        }
+
+        // Create research phases UI
+        function createResearchPhasesUI() {
+          // Create container for research phases
+          const phasesContainer = document.createElement("div");
+          phasesContainer.className = "research-phases";
+          phasesContainer.id = "researchPhases";
+
+          // Create pills for each phase
+          researchPhases.forEach((phase) => {
+            const pill = document.createElement("div");
+            pill.className = "phase-pill";
+            pill.id = `phase-${phase.id}`;
+            pill.textContent = phase.label;
+            phasesContainer.appendChild(pill);
+          });
+
+          // Insert at the top of the progress container
+          if (progressItems.firstChild) {
+            progressItems.insertBefore(
+              phasesContainer,
+              progressItems.firstChild
+            );
+          } else {
+            progressItems.appendChild(phasesContainer);
+          }
+        }
+
+        // Update active phase
+        function updateActivePhase(phaseMessage) {
+          // Reset all phases
+          document.querySelectorAll(".phase-pill").forEach((pill) => {
+            pill.classList.remove("active");
+          });
+
+          // Determine which phase to activate based on the message
+          let phaseToActivate = null;
+
+          // Check if the message contains a phase name
+          for (const phase of researchPhases) {
+            if (
+              phaseMessage.toLowerCase().includes(phase.id.replace("_", " "))
+            ) {
+              phaseToActivate = phase.id;
+              break;
+            }
+          }
+
+          // If no phase was found, try to match by label
+          if (!phaseToActivate) {
+            for (const phase of researchPhases) {
+              if (
+                phaseMessage.toLowerCase().includes(phase.label.toLowerCase())
+              ) {
+                phaseToActivate = phase.id;
+                break;
+              }
+            }
+          }
+
+          // Activate the phase if found
+          if (phaseToActivate) {
+            const phaseElement = document.getElementById(
+              `phase-${phaseToActivate}`
+            );
+            if (phaseElement) {
+              phaseElement.classList.add("active");
+
+              // Scroll the phase into view if needed
+              phaseElement.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+              });
+            }
+          }
+        }
+
+        // Add progress item
+        function addProgressItem(message, className) {
+          const item = document.createElement("div");
+          item.className = className;
+          item.textContent = message;
+
+          // Insert after the research phases if they exist
+          const phasesContainer = document.getElementById("researchPhases");
+          if (phasesContainer) {
+            progressItems.insertBefore(item, phasesContainer.nextSibling);
+          } else {
+            progressItems.appendChild(item);
+          }
+
+          // Scroll to bottom
+          progressItems.scrollTop = progressItems.scrollHeight;
+        }
+
+        // Display results
+        function displayResults(data) {
+          // Show dashboard container
+          dashboardContainer.style.display = "block";
+
+          // Display company info
+          if (data.company_info) {
+            const companyInfo = data.company_info;
+            companyInfoElement.innerHTML = `
+                        <h2>${companyInfo.name}</h2>
+                        <p>${companyInfo.description}</p>
+                        <p><strong>Website:</strong> <a href="${companyInfo.website}" target="_blank">${companyInfo.website}</a></p>
+                        <p><strong>Founded:</strong> ${companyInfo.founded_year}</p>
+                        <p><strong>Location:</strong> ${companyInfo.location}</p>
+                    `;
+          }
+
+          // Display dashboard components
+          if (
+            data.dashboard_components &&
+            Array.isArray(data.dashboard_components)
+          ) {
+            dashboardElement.innerHTML = "";
+
+            data.dashboard_components.forEach((component) => {
+              const componentElement = document.createElement("div");
+              componentElement.className = `dashboard-item ${component.size}`;
+              componentElement.id = component.id;
+
+              let componentContent = `<h3>${component.title}</h3>`;
+
+              // Render different component types
+              switch (component.type) {
+                case "people":
+                  componentContent += renderPeopleComponent(component.data);
+                  break;
+                case "text":
+                  componentContent += renderTextComponent(component.data);
+                  break;
+                case "list":
+                  componentContent += renderListComponent(component.data);
+                  break;
+                case "stat":
+                  componentContent += renderStatComponent(component.data);
+                  break;
+                default:
+                  componentContent += `<pre>${JSON.stringify(
+                    component.data,
+                    null,
+                    2
+                  )}</pre>`;
+              }
+
+              componentElement.innerHTML = componentContent;
+              dashboardElement.appendChild(componentElement);
+            });
+          }
+        }
+
+        // Render people component
+        function renderPeopleComponent(data) {
+          if (!Array.isArray(data))
+            return `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+          let html = '<div class="people-list">';
+
+          data.forEach((person) => {
+            html += `
+                        <div class="person">
+                            <div class="avatar">${
+                              person.avatar || person.name.charAt(0)
+                            }</div>
+                            <div class="person-details">
+                                <div class="person-name">${person.name}</div>
+                                <div class="person-role">${person.role}</div>
+                            </div>
+                        </div>
+                    `;
+          });
+
+          html += "</div>";
+          return html;
+        }
+
+        // Render text component
+        function renderTextComponent(data) {
+          let html = "";
+
+          if (data.text) {
+            html += `<p>${data.text}</p>`;
+          }
+
+          if (data.items && Array.isArray(data.items)) {
+            html += "<ul>";
+            data.items.forEach((item) => {
+              html += `<li>${item}</li>`;
+            });
+            html += "</ul>";
+          }
+
+          if (data.footer) {
+            html += `<p><em>${data.footer}</em></p>`;
+          }
+
+          if (data.sections && Array.isArray(data.sections)) {
+            data.sections.forEach((section) => {
+              if (section.title) {
+                html += `<h4>${section.title}</h4>`;
+              }
+
+              if (section.description) {
+                html += `<p>${section.description}</p>`;
+              }
+
+              if (section.items && Array.isArray(section.items)) {
+                html += "<ul>";
+                section.items.forEach((item) => {
+                  html += `<li>${item}</li>`;
+                });
+                html += "</ul>";
+              }
+            });
+          }
+
+          if (data.mentions && Array.isArray(data.mentions)) {
+            data.mentions.forEach((mention) => {
+              html += `
+                            <div style="margin-bottom: 10px;">
+                                <strong>${mention.source}</strong> (${mention.date})<br>
+                                "${mention.quote}"
+                            </div>
+                        `;
+            });
+          }
+
+          return html || `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        // Render list component
+        function renderListComponent(data) {
+          if (!Array.isArray(data))
+            return `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+          let html = "";
+
+          data.forEach((section) => {
+            if (section.title) {
+              html += `<h4>${section.title}</h4>`;
+            }
+
+            if (section.items && Array.isArray(section.items)) {
+              html += "<ul>";
+              section.items.forEach((item) => {
+                html += `<li class="list-item">${item}</li>`;
+              });
+              html += "</ul>";
+            }
+          });
+
+          return html || `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        // Render stat component
+        function renderStatComponent(data) {
+          let html = "";
+
+          if (data.value) {
+            html += `<div class="stat-value">${data.value}</div>`;
+          }
+
+          if (data.description) {
+            html += `<div class="stat-description">${data.description}</div>`;
+          }
+
+          return html || `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+      });
+    </script>
+  </body>
+</html>
