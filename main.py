@@ -3,9 +3,11 @@ from fastapi.security.api_key import APIKeyHeader, APIKey
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import secrets
+import os
 
 from services.crunchbase_service import CrunchbaseService
 from services.research_service import ResearchService
+from chatbot import chatbot_generate
 
 # API Key configuration
 # In a production environment, this should be stored securely (e.g., environment variables)
@@ -84,12 +86,67 @@ async def research(request: ResearchRequest, api_key: APIKey = Depends(get_api_k
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error performing research: {str(e)}")
 
+# Request model for the chatbot endpoint
+class ChatbotRequest(BaseModel):
+    query: str
+    research_json: dict
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "query": "What is the most recent funding size?",
+                    "research_json": {
+                        "name": "Anthropic",
+                        "description": "Anthropic is an AI safety company working to build reliable, interpretable, and steerable AI systems.",
+                        "funding_rounds": [
+                            {"date": "2021-05-01", "amount": 124000000, "series": "A", "investors": ["Jaan Tallinn", "Dustin Moskovitz"]},
+                            {"date": "2022-04-15", "amount": 580000000, "series": "B", "investors": ["Google", "Spark Capital"]}
+                        ],
+                        "founders": ["Dario Amodei", "Daniela Amodei", "Tom Brown"],
+                        "industry": "Artificial Intelligence",
+                        "founded_year": 2021,
+                        "total_funding": 704000000,
+                        "website": "https://www.anthropic.com",
+                        "location": "San Francisco, CA",
+                        "status": "Operating"
+                    }
+                }
+            ]
+        }
+    }
+
+
+# Response model for the chatbot endpoint
+class ChatbotResponse(BaseModel):
+    response: str
+    visualization: Optional[Dict[str, Any]] = None
+
+@app.post("/ask_chatbot", response_model=ChatbotResponse)
+async def ask_question(request: ChatbotRequest):
+    """
+    Ask a question about startup data
+    
+    This endpoint processes a user query about a specific company using the AI chatbot.
+    It returns a text response and optional visualization data.
+    """
+    try:
+        # Process the query using our chatbot
+        response_text, visualization_data = await chatbot_generate(request.query, request.research_json)
+        
+        # Return the response
+        return ChatbotResponse(
+            response=response_text,
+            visualization=visualization_data
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
+
 # Root endpoint for API health check (no authentication required)
 @app.get("/")
 async def root():
     return {
         "status": "API is running", 
-        "endpoints": ["/getData", "/research"],
+        "endpoints": ["/getData", "/research", "/ask_chatbot"],
         "authentication": f"API Key required in {API_KEY_NAME} header"
     }
 
